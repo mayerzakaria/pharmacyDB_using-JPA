@@ -9,8 +9,9 @@ import java.util.List;
 public class Employee {
 
     @Id
-    @Column(name = "employeeID")
-    private String employeeID;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "employee_id")
+    private Long employeeID;
 
     @Column(nullable = false)
     private String name;
@@ -34,9 +35,7 @@ public class Employee {
     //----------------------- Constructors -----------------------
     public Employee() {}
 
-    public Employee(String employeeID, String name, String username,
-                    String password, String role) {
-        this.employeeID = employeeID;
+    public Employee(String name, String username, String password, String role) {
         this.name = name;
         this.username = username;
         this.password = password;
@@ -45,24 +44,57 @@ public class Employee {
     }
 
     //----------------------- Getters & Setters -----------------------
-    public String getEmployeeID() { return employeeID; }
+    public Long getEmployeeID() {
+        return employeeID;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setEmployeeID(Long employeeID) {
+        this.employeeID = employeeID;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public String getName() {
+        return name;
+    }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public String getUsername() {
+        return username;
+    }
 
-    public double getTotalSales() { return totalSales; }
-    public void setTotalSales(double totalSales) { this.totalSales = totalSales; }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-    public List<Sale> getSalesHistory() { return salesHistory; }
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public double getTotalSales() {
+        return totalSales;
+    }
+
+    public void setTotalSales(double totalSales) {
+        this.totalSales = totalSales;
+    }
+
+    public List<Sale> getSalesHistory() {
+        return salesHistory;
+    }
 
     //----------------------- Business Logic -----------------------
     public boolean login(String username, String password) {
@@ -71,5 +103,19 @@ public class Employee {
 
     public double calculateBonus(double bonusPercentage) {
         return totalSales * (bonusPercentage / 100);
+    }
+
+    public void addSale(double amount) {
+        this.totalSales += amount;
+    }
+
+    public void addSale(Sale sale) {
+        salesHistory.add(sale);
+        sale.setEmployee(this);
+    }
+
+    @Override
+    public String toString() {
+        return name + " (" + role + ") - Sales: " + totalSales;
     }
 }

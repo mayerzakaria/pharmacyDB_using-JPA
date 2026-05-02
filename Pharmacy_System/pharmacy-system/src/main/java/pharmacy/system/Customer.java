@@ -9,6 +9,7 @@ package pharmacy.system;
  * @author Mayer
  */
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,23 +33,24 @@ public class Customer {
     private double amountDue;
 
     @Column(name = "lastPaymentDate")
-    private String lastPaymentDate;
+    private LocalDate  lastPaymentDate;
 
     // One customer → many sales
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
-    private List<Sale> sales = new ArrayList<>();
+    private List<Sale> sales = new ArrayList<>() ;
 
     //----------------------- Constructors -----------------------
     public Customer() {}
 
     public Customer(String name, String phone, String address,
-                    double amountDue, String lastPaymentDate) {
+                    double amountDue,   LocalDate lastPaymentDate) {
         this.name = name;
         this.phone = phone;
         this.address = address;
         this.amountDue = amountDue;
         this.lastPaymentDate = lastPaymentDate;
     }
+    
 
     //----------------------- Getters & Setters -----------------------
     public int getCustomerID() { return customerID; }
@@ -63,17 +65,34 @@ public class Customer {
     public void setAddress(String address) { this.address = address; }
 
     public double getAmountDue() { return amountDue; }
-    public void setAmountDue(double amountDue) { this.amountDue = amountDue; }
+    public void setAmountDue(double amountDue){
+        if(amountDue >= 0)
+        this.amountDue = amountDue;
+    }
 
-    public String getLastPaymentDate() { return lastPaymentDate; }
-    public void setLastPaymentDate(String lastPaymentDate) {
+    public LocalDate getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDate lastPaymentDate) {
         this.lastPaymentDate = lastPaymentDate;
     }
 
     //----------------------- Business Logic -----------------------
-    public void payDueAmount(double amount) {
+    
+        public void addSale(Sale sale) {
+            sales.add(sale);
+            sale.setCustomer(this);
+        }
+        public boolean payDueAmount(double amount) {
         if (amount > 0 && amount <= amountDue) {
             amountDue -= amount;
+            return true;
         }
+        return false;
+    }
+    public String getCustomerInfo() {
+        return name + " - " + phone + " - Due: " + amountDue;
+    }
+    @Override
+    public String toString() {
+        return getCustomerInfo();
     }
 }

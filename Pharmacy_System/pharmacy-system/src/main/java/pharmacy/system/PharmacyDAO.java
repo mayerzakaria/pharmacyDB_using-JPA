@@ -1,254 +1,291 @@
 package pharmacy.system;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import java.util.List;
 
 public class PharmacyDAO {
 
-    private EntityManagerFactory emf;
-    private EntityManager em;
+    private final EntityManagerFactory emf;
+    private final EntityManager em;
 
     public PharmacyDAO() {
         emf = Persistence.createEntityManagerFactory("PharmacyPU");
         em = emf.createEntityManager();
     }
+    
+    public Employee login(String username, String password) {
+    try {
+        return em.createQuery(
+            "SELECT e FROM Employee e WHERE e.username = :u AND e.password = :p",
+            Employee.class)
+            .setParameter("u", username)
+            .setParameter("p", password)
+            .getSingleResult();
+    } catch (NoResultException e) {
+        return null;
+    }
+}
 
+    // ==================== CLOSE ====================
     public void close() {
-        em.close();
-        emf.close();
+        if (em.isOpen()) em.close();
+        if (emf.isOpen()) emf.close();
     }
 
+    // ==================== TRANSACTION WRAPPER ====================
+    private void executeInsideTransaction(Runnable action) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            action.run();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            throw new RuntimeException("Transaction failed: " + e.getMessage(), e);
+        }
+    }
+        public Supplier getSupplierById(String id) {
+            return em.find(Supplier.class, id);
+        }
     // ==================== INSERT ====================
+ public Supplier insertSupplier(Supplier s) 
+ {
 
-    public void insertSupplier(Supplier s) {
-        em.getTransaction().begin();
+    if (em.find(Supplier.class, s.getSupplierID()) != null)
+        return em.find(Supplier.class, s.getSupplierID());
+
+    executeInsideTransaction(() -> em.persist(s));
+    return s;
+}
+    public Product insertProduct(Product p) {
+        executeInsideTransaction(() -> em.persist(p));
+        return p;
+    }
+
+ public Employee insertEmployee(Employee e) {
+    executeInsideTransaction(() -> em.persist(e));
+    return e;
+}
+
+    public Customer insertCustomer(Customer c) {
+        executeInsideTransaction(() -> em.persist(c));
+        return c;
+    }
+
+  public Sale insertSale(Sale s) {
+    executeInsideTransaction(() -> {
+        // decrease stock for each item
+        for (SaleItem item : s.getItems()) {
+            Product p = em.find(Product.class, 
+                         item.getProduct().getProductID());
+            if (p != null) {
+                int newStock = p.getStockQuantity() - item.getQuantity();
+                if (newStock < 0) throw new RuntimeException(
+                    "Not enough stock for: " + p.getName());
+                p.setStockQuantity(newStock);
+            }
+        }
+        // update employee total sales
+        Employee emp = em.find(Employee.class, 
+                       s.getEmployee().getEmployeeID());
+        if (emp != null) {
+            emp.setTotalSales(emp.getTotalSales() + s.getTotalAmount());
+        }
         em.persist(s);
-        em.getTransaction().commit();
-        System.out.println("✅ Supplier inserted: " + s.getName());
+    });
+    return s;
+}
+    // ==================== GET ====================
+        public List<Customer> getAllCustomers() {
+        return em.createQuery("SELECT c FROM Customer c", Customer.class)
+                .getResultList();
     }
 
-    public void insertProduct(Product p) {
-        em.getTransaction().begin();
-        em.persist(p);
-        em.getTransaction().commit();
-        System.out.println("✅ Product inserted: " + p.getName());
+    public List<Product> getAllProducts() {
+        return em.createQuery("SELECT p FROM Product p", Product.class)
+                .getResultList();
     }
 
-    public void insertEmployee(Employee e) {
-        em.getTransaction().begin();
-        em.persist(e);
-        em.getTransaction().commit();
-        System.out.println("✅ Employee inserted: " + e.getName());
+    public List<Sale> getAllSales() {
+        return em.createQuery("SELECT s FROM Sale s", Sale.class)
+                .getResultList();
     }
-
-    public void insertCustomer(Customer c) {
-        em.getTransaction().begin();
-        em.persist(c);
-        em.getTransaction().commit();
-        System.out.println("✅ Customer inserted: " + c.getName());
+    public List<Employee> getAllEmployees() {
+        return em.createQuery("SELECT e FROM Employee e", Employee.class)
+            .getResultList();
     }
+    public Product getProductById(Long id) {
+    return em.find(Product.class, id);
+}
 
-    public void insertSale(Sale s) {
-        em.getTransaction().begin();
-        em.persist(s);
-        em.getTransaction().commit();
-        System.out.println("✅ Sale inserted: " + s.getSaleID());
+    // ==================== FIND HELPER ====================
+    private <T> T find(Class<T> clazz, Object id) {
+        return em.find(clazz, id);
     }
 
     // ==================== UPDATE ====================
-
-    // Update product price
-    public void updateProductPrice(int productID, double newPrice) {
-        em.getTransaction().begin();
-        Product p = em.find(Product.class, productID);
-        if (p != null) {
-            p.setPrice(newPrice);
-            em.merge(p);
-            System.out.println("✅ Product price updated to: " + newPrice);
-        } else {
-            System.out.println("❌ Product not found!");
-        }
-        em.getTransaction().commit();
+    public void updateProductPrice(Long  productID, double newPrice) {
+        executeInsideTransaction(() -> {
+            Product p = find(Product.class, productID);
+            if (p != null) p.setPrice(newPrice);
+        });
     }
 
-    // Update product stock
-    public void updateProductStock(int productID, int newStock) {
-        em.getTransaction().begin();
-        Product p = em.find(Product.class, productID);
-        if (p != null) {
-            p.setStockQuantity(newStock);
-            em.merge(p);
-            System.out.println("✅ Stock updated to: " + newStock);
-        }
-        em.getTransaction().commit();
+    public void updateProductStock(Long  productID, int newStock) {
+        executeInsideTransaction(() -> {
+            Product p = find(Product.class, productID);
+            if (p != null) p.setStockQuantity(newStock);
+        });
     }
 
-    // Update customer amount due
-    public void updateCustomerAmountDue(int customerID, double amount) {
-        em.getTransaction().begin();
-        Customer c = em.find(Customer.class, customerID);
-        if (c != null) {
-            c.setAmountDue(amount);
-            em.merge(c);
-            System.out.println("✅ Customer amount due updated: " + amount);
-        }
-        em.getTransaction().commit();
+    public void updateCustomerAmountDue(long customerID, double amount) {
+        executeInsideTransaction(() -> {
+            Customer c = find(Customer.class, customerID);
+            if (c != null) c.setAmountDue(amount);
+        });
     }
 
-    // Update employee password
     public void updateEmployeePassword(String employeeID, String newPassword) {
-        em.getTransaction().begin();
-        Employee e = em.find(Employee.class, employeeID);
-        if (e != null) {
-            e.setPassword(newPassword);
-            em.merge(e);
-            System.out.println("✅ Password updated for: " + e.getName());
-        }
-        em.getTransaction().commit();
+        executeInsideTransaction(() -> {
+            Employee e = find(Employee.class, employeeID);
+            if (e != null) e.setPassword(newPassword);
+        });
     }
 
     // ==================== DELETE ====================
+    public boolean deleteProduct(Long  id) {
+        final boolean[] deleted = {false};
 
-    // Delete product by ID
-    public void deleteProduct(int productID) {
-        em.getTransaction().begin();
-        Product p = em.find(Product.class, productID);
-        if (p != null) {
-            em.remove(p);
-            System.out.println("✅ Product deleted: " + p.getName());
-        } else {
-            System.out.println("❌ Product not found!");
-        }
-        em.getTransaction().commit();
+        executeInsideTransaction(() -> {
+            Product p = em.find(Product.class, id);
+            if (p != null) {
+                em.remove(p);
+                deleted[0] = true;
+            }
+        });
+
+        return deleted[0];
     }
 
-    // Delete customer by ID
-    public void deleteCustomer(int customerID) {
-        em.getTransaction().begin();
-        Customer c = em.find(Customer.class, customerID);
-        if (c != null) {
-            em.remove(c);
-            System.out.println("✅ Customer deleted: " + c.getName());
-        }
-        em.getTransaction().commit();
+    public boolean deleteCustomer(Long  id) {
+        final boolean[] deleted = {false};
+
+        executeInsideTransaction(() -> {
+            Customer c = em.find(Customer.class, id);
+            if (c != null) {
+                em.remove(c);
+                deleted[0] = true;
+            }
+        });
+
+        return deleted[0];
     }
 
-    // Delete employee by ID
-    public void deleteEmployee(String employeeID) {
-        em.getTransaction().begin();
-        Employee e = em.find(Employee.class, employeeID);
+ public boolean deleteEmployee(Long id) {
+
+    final boolean[] deleted = {false};
+
+    executeInsideTransaction(() -> {
+        Employee e = em.find(Employee.class, id);
         if (e != null) {
             em.remove(e);
-            System.out.println("✅ Employee deleted: " + e.getName());
+            deleted[0] = true;
         }
-        em.getTransaction().commit();
-    }
+    });
 
-    // ==================== QUERIES (JPQL) ====================
-
-    // Query 1: Get all products with their supplier name
-    // Joins: products + suppliers
-    public void query1_ProductsWithSupplier() {
-        System.out.println("\n=== Query 1: Products with Supplier ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT p.name, p.price, p.stockQuantity, s.name " +
-            "FROM Product p JOIN p.supplier s", Object[].class)
+    return deleted[0];
+}
+ 
+ 
+ 
+ 
+ 
+ //====================== Supplier ======================
+ public List<Supplier> getAllSuppliers() {
+    return em.createQuery("SELECT s FROM Supplier s", Supplier.class)
             .getResultList();
-        for (Object[] row : results) {
-            System.out.println("Product: " + row[0] +
-                " | Price: " + row[1] +
-                " | Stock: " + row[2] +
-                " | Supplier: " + row[3]);
-        }
-    }
+}
 
-    // Query 2: Get all sales with employee name and customer name
-    // Joins: sales + employees + customers
-    public void query2_SalesWithEmployeeAndCustomer() {
-        System.out.println("\n=== Query 2: Sales with Employee & Customer ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT s.saleID, s.saleDate, s.totalAmount, " +
-            "e.name, c.name " +
-            "FROM Sale s JOIN s.employee e JOIN s.customer c",
-            Object[].class)
-            .getResultList();
-        for (Object[] row : results) {
-            System.out.println("SaleID: " + row[0] +
-                " | Date: " + row[1] +
-                " | Total: " + row[2] +
-                " | Employee: " + row[3] +
-                " | Customer: " + row[4]);
+public void deleteSupplier(Supplier s) {
+    executeInsideTransaction(() -> {
+        Supplier managed = em.find(Supplier.class, s.getSupplierID());
+        if (managed != null) {
+            em.remove(managed);
         }
-    }
+    });
+}
+ 
 
-    // Query 3: Get all products sold in each sale (sale items details)
-    // Joins: sale_items + products + sales
-    public void query3_SaleItemsWithProducts() {
-        System.out.println("\n=== Query 3: Sale Items with Products ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT si.sale.saleID, p.name, si.quantity, si.lineTotal " +
-            "FROM SaleItem si JOIN si.product p",
-            Object[].class)
-            .getResultList();
-        for (Object[] row : results) {
-            System.out.println("SaleID: " + row[0] +
-                " | Product: " + row[1] +
-                " | Qty: " + row[2] +
-                " | LineTotal: " + row[3]);
-        }
-    }
 
-    // Query 4: Get total sales amount per employee
-    // Joins: sales + employees
-    public void query4_TotalSalesPerEmployee() {
-        System.out.println("\n=== Query 4: Total Sales per Employee ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT e.name, SUM(s.totalAmount) " +
-            "FROM Sale s JOIN s.employee e " +
-            "GROUP BY e.name",
-            Object[].class)
-            .getResultList();
-        for (Object[] row : results) {
-            System.out.println("Employee: " + row[0] +
-                " | Total Sales: " + row[1]);
-        }
-    }
 
-    // Query 5: Get all customers who have amount due > 0
-    // Joins: customers + sales
-    public void query5_CustomersWithDebt() {
-        System.out.println("\n=== Query 5: Customers with Debt ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT c.name, c.phone, c.amountDue, s.saleDate " +
-            "FROM Customer c JOIN c.sales s " +
-            "WHERE c.amountDue > 0",
-            Object[].class)
-            .getResultList();
-        for (Object[] row : results) {
-            System.out.println("Customer: " + row[0] +
-                " | Phone: " + row[1] +
-                " | Due: " + row[2] +
-                " | Last Sale: " + row[3]);
-        }
-    }
 
-    // Query 6: Get low stock products with supplier info
-    // Joins: products + suppliers
-    public void query6_LowStockWithSupplier() {
-        System.out.println("\n=== Query 6: Low Stock Products & Supplier ===");
-        List<Object[]> results = em.createQuery(
-            "SELECT p.name, p.stockQuantity, p.category, s.name, s.email " +
-            "FROM Product p JOIN p.supplier s " +
-            "WHERE p.stockQuantity < 50",
-            Object[].class)
-            .getResultList();
-        for (Object[] row : results) {
-            System.out.println("Product: " + row[0] +
-                " | Stock: " + row[1] +
-                " | Category: " + row[2] +
-                " | Supplier: " + row[3] +
-                " | Email: " + row[4]);
-        }
-    }
+
+
+    // ==================== QUERIES ====================
+
+public List<Object[]> getQuery1() {
+    return em.createQuery(
+        "SELECT p.name, p.category, p.price, p.stockQuantity, s.name, s.email " +
+        "FROM Product p JOIN p.supplier s " +
+        "ORDER BY p.category",
+        Object[].class).getResultList();
+}
+
+
+public List<Object[]> getQuery2() {
+    return em.createQuery(
+        "SELECT s.saleID, s.saleDate, s.totalAmount, s.payment, e.name, c.name " +
+        "FROM Sale s JOIN s.employee e JOIN s.customer c " +
+        "ORDER BY s.saleDate DESC",
+        Object[].class).getResultList();
+}
+
+
+public List<Object[]> getQuery3() {
+    return em.createQuery(
+        "SELECT si.sale.saleID, c.name, p.name, si.quantity, si.lineTotal " +
+        "FROM SaleItem si JOIN si.product p JOIN si.sale s JOIN s.customer c " +
+        "ORDER BY si.sale.saleID",
+        Object[].class).getResultList();
+}
+
+
+public List<Object[]> getQuery4() {
+    return em.createQuery(
+        "SELECT e.name, e.role, COUNT(s.saleID), SUM(s.totalAmount) " +
+        "FROM Sale s JOIN s.employee e " +
+        "GROUP BY e.name, e.role " +
+        "ORDER BY SUM(s.totalAmount) DESC",
+        Object[].class).getResultList();
+}
+
+
+public List<Object[]> getQuery5() {
+    return em.createQuery(
+        "SELECT c.name, c.phone, c.amountDue, MAX(s.saleDate) " +
+        "FROM Sale s JOIN s.customer c " +
+        "WHERE c.amountDue > 0 " +
+        "GROUP BY c.name, c.phone, c.amountDue " +
+        "ORDER BY c.amountDue DESC",
+        Object[].class).getResultList();
+}
+
+
+public List<Object[]> getQuery6() {
+    return em.createQuery(
+        "SELECT p.name, p.stockQuantity, p.category, sup.name, sup.email " +
+        "FROM Product p JOIN p.supplier sup " +
+        "WHERE p.stockQuantity <= 10 " +        // ← كل المنتجات اللي stock <= 10
+        "ORDER BY p.stockQuantity ASC",
+        Object[].class).getResultList();
+}
+
+public List<Object[]> getQuery7() {
+    return em.createQuery(
+        "SELECT p.name, p.category, sup.name, e.name, SUM(si.quantity) " +
+        "FROM SaleItem si JOIN si.product p JOIN p.supplier sup JOIN si.sale s JOIN s.employee e " +
+        "GROUP BY p.name, p.category, sup.name, e.name " +
+        "ORDER BY SUM(si.quantity) DESC",
+        Object[].class).getResultList();
+}
 }

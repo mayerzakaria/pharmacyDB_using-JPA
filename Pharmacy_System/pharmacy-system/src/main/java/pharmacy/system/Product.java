@@ -7,10 +7,10 @@ import java.time.LocalDate;
 @Table(name = "products")
 public class Product {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "productID")
-    private int productID;
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "product_id")
+private Integer productID;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -21,65 +21,132 @@ public class Product {
     @Column(name = "price", nullable = false)
     private double price;
 
-    @Column(name = "stockQuantity", nullable = false)
+    @Column(name = "stock_quantity", nullable = false)
     private int stockQuantity;
 
-    @Column(name = "expiryDate", nullable = false)
+    @Column(name = "expiry_date", nullable = false)
     private LocalDate expiryDate;
 
-    @Column(name = "isPrescriptionRequired")
-    private boolean isPrescriptionRequired;
+    @Column(name = "is_prescription_required")
+    private boolean prescriptionRequired;
 
-    // ← merged from Drug class
     @Column(name = "dosage")
     private String dosage;
 
-    // ← will link to Supplier later
-    @ManyToOne
-    @JoinColumn(name = "supplierID")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "supplier_id", nullable = false)
     private Supplier supplier;
 
-    //----------------------- Constructors -----------------------
+    // ───── Constructors ─────
     public Product() {}
 
     public Product(String name, String category, double price,
                    int stockQuantity, LocalDate expiryDate,
-                   boolean isPrescriptionRequired, String dosage) {
+                   boolean prescriptionRequired, String dosage) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.stockQuantity = stockQuantity;
         this.expiryDate = expiryDate;
-        this.isPrescriptionRequired = isPrescriptionRequired;
+        this.prescriptionRequired = prescriptionRequired;
         this.dosage = dosage;
     }
 
-    //----------------------- Getters & Setters -----------------------
-    public int getProductID() { return productID; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
-
-    public int getStockQuantity() { return stockQuantity; }
-    public void setStockQuantity(int stockQuantity) { this.stockQuantity = stockQuantity; }
-
-    public LocalDate getExpiryDate() { return expiryDate; }
-    public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
-
-    public boolean isIsPrescriptionRequired() { return isPrescriptionRequired; }
-    public void setIsPrescriptionRequired(boolean isPrescriptionRequired) {
-        this.isPrescriptionRequired = isPrescriptionRequired;
+    public Product(String name, String category, double price,
+                   int stockQuantity, LocalDate expiryDate,
+                   boolean prescriptionRequired, String dosage,
+                   Supplier supplier) {
+        this.name = name;
+        this.category = category;
+        this.price = price;
+        this.stockQuantity = stockQuantity;
+        this.expiryDate = expiryDate;
+        this.prescriptionRequired = prescriptionRequired;
+        this.dosage = dosage;
+        this.supplier = supplier;
     }
 
-    public String getDosage() { return dosage; }
-    public void setDosage(String dosage) { this.dosage = dosage; }
+    // ───── Getters & Setters ─────
+    public int getProductID() {
+        return productID;
+    }
 
-    public Supplier getSupplier() { return supplier; }
-    public void setSupplier(Supplier supplier) { this.supplier = supplier; }
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public int getStockQuantity() {
+        return stockQuantity;
+    }
+
+    public void setStockQuantity(int stockQuantity) {
+        this.stockQuantity = stockQuantity;
+    }
+
+    public LocalDate getExpiryDate() {
+        return expiryDate;
+    }
+
+    public void setExpiryDate(LocalDate expiryDate) {
+        this.expiryDate = expiryDate;
+    }
+
+    public boolean isPrescriptionRequired() {
+        return prescriptionRequired;
+    }
+
+    public void setPrescriptionRequired(boolean prescriptionRequired) {
+        this.prescriptionRequired = prescriptionRequired;
+    }
+
+    public String getDosage() {
+        return dosage;
+    }
+
+    public void setDosage(String dosage) {
+        this.dosage = dosage;
+    }
+
+    public Supplier getSupplier() {
+        return supplier;
+    }
+
+    public void setSupplier(Supplier supplier) {
+        this.supplier = supplier;
+    }
+
+    // ───── toString (Debugging) ─────
+    @Override
+    public String toString() {
+        return "Product{" +
+                "productID=" + productID +
+                ", name='" + name + '\'' +
+                ", category='" + category + '\'' +
+                ", price=" + price +
+                ", stockQuantity=" + stockQuantity +
+                ", expiryDate=" + expiryDate +
+                ", prescriptionRequired=" + prescriptionRequired +
+                ", dosage='" + dosage + '\'' +
+                '}';
+    }
 }
